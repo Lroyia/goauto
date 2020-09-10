@@ -21,23 +21,23 @@ func main() {
 		// 默认休眠时间5分钟
 		sleepTime := 60 * 5
 		// 配置没问题则进行构建
-		if err == nil{
+		if err == nil {
 			// 读取休眠时间
 			sleepInt, err := strconv.Atoi(conf.Conf["sleep"])
-			if err == nil{
+			if err == nil {
 				sleepTime = sleepInt
 			}
 			// 构建项目
 			for key, dir := range conf.Dir {
 				err = build(key, dir, conf.Branch[key], conf.Script[key])
-				if err != nil{
+				if err != nil {
 					log.Fatal(err.Error())
 				}
 			}
-		}else {
-			log.Fatal("构建失败，配置文件读取错误："+err.Error())
+		} else {
+			log.Fatal("构建失败，配置文件读取错误：" + err.Error())
 		}
-		time.Sleep(time.Duration(sleepTime)*time.Second)
+		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
 }
 
@@ -50,14 +50,14 @@ func build(key string, dir string, branch string, script string) error {
 
 	// checkout 分支
 	rs = callCmd(dir, "git", "checkout", branch)
-	if !strings.Contains(rs, "Switched to branch") && !strings.Contains(rs, "Already on") && !strings.Contains(rs, "up to date"){
-		return errors.New(key + " " +rs)
+	if !strings.Contains(rs, "Switched to branch") && !strings.Contains(rs, "Already on") && !strings.Contains(rs, "up to date") && rs != "" {
+		return errors.New(key + " " + rs)
 	}
 	log.Println(key + " " + "git checkout " + branch + "  ---success")
 
 	// 关掉之前的应用
 	pid := pidMap[key]
-	if pid != ""{
+	if pid != "" {
 		switch runtime.GOOS {
 		case "windows":
 			callCmd(dir, "taskkill", "/pid", pid, "-t", "-f")
@@ -69,28 +69,29 @@ func build(key string, dir string, branch string, script string) error {
 
 	// 更新仓库
 	rs = callCmd(dir, "git", "pull")
-	if strings.Contains(rs, "Already up to date"){
+	if strings.Contains(rs, "Already up to date") {
 		log.Println(key + "  " + rs)
 		return nil
 	}
 
 	// 拆分构建脚本
 	script = strings.Trim(script, " ")
-	if script == ""{
+	if script == "" {
 		return errors.New(key + " 缺少构建脚本")
 	}
 	scripts := strings.Split(script, "|")
 
 	// 取最后一条脚本为运行脚本
 	runScript := strings.Trim(scripts[len(scripts)-1:][0], " ")
-	if runScript == ""{
-		return errors.New(key+" 构建脚本有误")
+	if runScript == "" {
+		return errors.New(key + " 构建脚本有误")
 	}
 	// 取前面的脚本作为构建项目的脚本
-	if len(scripts) > 1{
-		scripts = scripts[0:len(scripts)-1]
+	if len(scripts) > 1 {
+		scripts = scripts[0 : len(scripts)-1]
 		// 运行构建脚本
 		for _, s := range scripts {
+			log.Println(s + " --begin")
 			callCmdStr(dir, s)
 			log.Println(s + " --success")
 		}
@@ -104,28 +105,47 @@ func build(key string, dir string, branch string, script string) error {
 		scripts = strings.SplitN(runScript, " ", 2)
 		var args string
 		binName := scripts[0]
-		if len(scripts) > 1{
-			args = " "+scripts[1]
+		if len(scripts) > 1 {
+			args = " " + scripts[1]
 		}
 		err := callCmdNohup(dir, scripts[0], strings.Split(scripts[1], " ")...)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 		// 查询pid
-		whereArgs :="CommandLine=\""+binName + args+"\""
+		whereArgs := "CommandLine=\"" + binName + args + "\""
 		rs = callCmd(dir, "wmic", "process", "where", whereArgs, "get", "ProcessId", "/value")
 		rs = strings.Trim(strings.Trim(strings.Trim(rs, " "), "\n"), "\r")
 		// 不是返回“没有可用实例”
-		if !strings.Contains(rs, "没") && strings.Contains(rs, "="){
+		if !strings.Contains(rs, "没") && strings.Contains(rs, "=") {
 			pidSplit := strings.Split(rs, "=")
 			pidMap[key] = strings.ReplaceAll(strings.ReplaceAll(pidSplit[1], "\n", ""), "\r", "")
+			log.Println("pid=" + pidMap[key])
 		}
 	case "linux":
 		// 控制台输出文件名，用输入命令去空格，去“-”，去“.”
-		stdOutFileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(runScript, " ", ""), ".", "_"), "-", "")+".log"
-		rs = callCmdStr(dir, "nohup " + runScript + " > " + stdOutFileName + " 2>&1 &")
-		// nohup会输出pid，记录pid用于下次重构后
-		pidMap[key] = rs
+		//stdOutFileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(runScript, " ", ""), ".", "_"), "-", "") + ".log"
+		runScriptArray := strings.SplitN(runScript, " ", 2)
+		err := callCmdNohup(dir, runScriptArray[0], runScriptArray[1:]...)
+		if err != nil {
+			return err
+		}
+		rs = callCmd(dir, "ps", "-ef")
+		rsLines := strings.Split(rs, "\n")
+		target := ""
+		for _, each := range rsLines {
+			if strings.Contains(each, runScript) {
+				target = each
+				break
+			}
+		}
+		if target == "" {
+			return errors.New("could not find the pid")
+		}
+		pidTab := strings.Split(target, " ")
+		pid := strings.Trim(pidTab[1], " ")
+		pidMap[key] = pid
+		log.Println("pid=" + pid)
 	}
 	log.Println(runScript + " ---success")
 	return nil
@@ -134,7 +154,7 @@ func build(key string, dir string, branch string, script string) error {
 /**
  * 运行脚本
  */
-func callCmdStr(dir string, cmd string) string{
+func callCmdStr(dir string, cmd string) string {
 	cmd = strings.Trim(cmd, " ")
 	rs := strings.Split(cmd, " ")
 	return callCmd(dir, rs[0], rs[1:]...)
