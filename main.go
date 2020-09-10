@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"goauto/config"
+	"io/ioutil"
 	"log"
 	"os/exec"
 	"runtime"
@@ -213,5 +214,17 @@ func callCmd(dir string, name string, args ...string) string {
 func callCmdNohup(dir string, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
-	return cmd.Start()
+	io, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	defer io.Close()
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	rs, err := ioutil.ReadAll(io)
+	log.Println(rs)
+
+	return err
 }
