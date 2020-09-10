@@ -141,6 +141,7 @@ func build(key string, dir string, branch string, script string) error {
 				break
 			}
 		}
+		log.Println(target)
 		if target == "" {
 			return errors.New("could not find the pid")
 		}
