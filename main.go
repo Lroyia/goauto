@@ -133,7 +133,8 @@ func build(key string, dir string, branch string, script string) error {
 		//if err != nil {
 		//	return err
 		//}
-		_ = callCmdStr(dir, "nohup "+runScript+" >"+stdOutFileName+" 2>&1 &")
+		cmd := strings.Split("nohup "+runScript+" >"+stdOutFileName+" 2>&1 &", " ")
+		_ = callCmdNohup(dir, cmd[0], cmd[1:]...)
 		rs = callCmd(dir, "ps", "-ef")
 		rsLines := strings.Split(rs, "\n")
 		target := ""
