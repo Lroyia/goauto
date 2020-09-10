@@ -70,7 +70,7 @@ func build(key string, dir string, branch string, script string) error {
 		case "windows":
 			callCmd(dir, "taskkill", "/pid", pid, "-t", "-f")
 		case "linux":
-			callCmd(dir, "kill", "-15", pid)
+			callCmd(dir, "kill", "-9", pid)
 		}
 		log.Println("kill - " + pid)
 	}
