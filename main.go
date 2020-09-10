@@ -69,6 +69,7 @@ func build(key string, dir string, branch string, script string) error {
 
 	// 更新仓库
 	rs = callCmd(dir, "git", "pull")
+	log.Println(rs)
 	if strings.Contains(rs, "Already up to date") {
 		log.Println(key + "  " + rs)
 		return nil
