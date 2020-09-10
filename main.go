@@ -111,7 +111,7 @@ func build(key string, dir string, branch string, script string) error {
 		}
 		runScriptArray := strings.Split(runScript, " ")
 		// 后台运行
-		go callCmd(dir, runScriptArray[0], runScriptArray[1:]...)
+		go callCmdNohup(dir, runScriptArray[0], runScriptArray[1:]...)
 		//err := callCmdNohup(dir, scripts[0], strings.Split(scripts[1], " ")...)
 		//if err != nil {
 		//	return err
@@ -134,7 +134,7 @@ func build(key string, dir string, branch string, script string) error {
 		log.Println(runScript + "  --begin")
 		runScriptArray := strings.Split(runScript, " ")
 		// 后台运行
-		go callCmd(dir, runScriptArray[0], runScriptArray[1:]...)
+		go callCmdNohup(dir, runScriptArray[0], runScriptArray[1:]...)
 		//if err != nil {
 		//	return err
 		//}
@@ -212,4 +212,13 @@ func callCmd(dir string, name string, args ...string) string {
 		log.Fatal(err)
 	}
 	return out.String()
+}
+
+/**
+ * 后台运行
+ */
+func callCmdNohup(dir string, name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	return cmd.Start()
 }
