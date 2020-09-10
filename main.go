@@ -131,6 +131,7 @@ func build(key string, dir string, branch string, script string) error {
 			return err
 		}
 		rs = callCmd(dir, "ps", "-ef")
+		log.Println(rs)
 		rsLines := strings.Split(rs, "\n")
 		target := ""
 		for _, each := range rsLines {
