@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"goauto/config"
-	"io/ioutil"
 	"log"
 	"os/exec"
 	"runtime"
@@ -219,12 +218,5 @@ func callCmdNohup(dir string, name string, args ...string) error {
 		return err
 	}
 	defer io.Close()
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
-	rs, err := ioutil.ReadAll(io)
-	log.Println(rs)
-
-	return err
+	return cmd.Start()
 }
