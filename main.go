@@ -35,11 +35,11 @@ func main() {
 			for key, dir := range conf.Dir {
 				err = build(key, dir, conf.Branch[key], conf.Script[key])
 				if err != nil {
-					log.Fatal(err.Error())
+					log.Println(err.Error())
 				}
 			}
 		} else {
-			log.Fatal("构建失败，配置文件读取错误：" + err.Error())
+			log.Println("构建失败，配置文件读取错误：" + err.Error())
 		}
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
@@ -53,14 +53,14 @@ func build(key string, dir string, branch string, script string) error {
 	var rs string
 
 	// checkout 分支
-	rs = callCmd(dir, "git", "checkout", branch)
+	rs, _ = callCmd(dir, "git", "checkout", branch)
 	if !strings.Contains(rs, "Switched to branch") && !strings.Contains(rs, "Already on") && !strings.Contains(rs, "up to date") && rs != "" {
 		return errors.New(key + " " + rs)
 	}
 	log.Println(key + " " + "git checkout " + branch + "  ---success")
 
 	// 更新仓库
-	rs = callCmd(dir, "git", "pull")
+	rs, _ = callCmd(dir, "git", "pull")
 	if strings.Contains(rs, "Already") {
 		log.Println(key + "  " + rs)
 		return nil
@@ -100,7 +100,11 @@ func build(key string, dir string, branch string, script string) error {
 		// 运行构建脚本
 		for _, s := range scripts {
 			log.Println(s + " --begin")
-			callCmdStr(dir, s)
+			rs, err := callCmdStr(dir, s)
+			log.Println(rs)
+			if err != nil {
+				return err
+			}
 			log.Println(s + " --success")
 		}
 	}
@@ -120,7 +124,10 @@ func build(key string, dir string, branch string, script string) error {
 		time.Sleep(time.Duration(1) * time.Second)
 		// 查询pid
 		whereArgs := "CommandLine=\"" + binName + args + "\""
-		rs = callCmd(dir, "wmic", "process", "where", whereArgs, "get", "ProcessId", "/value")
+		rs, err := callCmd(dir, "wmic", "process", "where", whereArgs, "get", "ProcessId", "/value")
+		if err != nil {
+			return err
+		}
 		rs = strings.Trim(strings.Trim(strings.Trim(rs, " "), "\n"), "\r")
 		// 不是返回“没有可用实例”
 		if !strings.Contains(rs, "没") && strings.Contains(rs, "=") {
@@ -137,7 +144,10 @@ func build(key string, dir string, branch string, script string) error {
 		go callCmdNohup(dir, key, runScriptArray[0], runScriptArray[1:]...)
 		time.Sleep(time.Duration(1) * time.Second)
 		// 查询pid
-		rs = callCmd(dir, "ps", "-ef")
+		rs, err := callCmd(dir, "ps", "-ef")
+		if err != nil {
+			return err
+		}
 		rsLines := strings.Split(rs, "\n")
 		target := ""
 		for _, each := range rsLines {
@@ -168,7 +178,7 @@ func build(key string, dir string, branch string, script string) error {
 /**
  * 运行脚本
  */
-func callCmdStr(dir string, cmd string) string {
+func callCmdStr(dir string, cmd string) (string, error) {
 	cmd = strings.Trim(cmd, " ")
 	rs := strings.Split(cmd, " ")
 	return callCmd(dir, rs[0], rs[1:]...)
@@ -179,7 +189,7 @@ func callCmdStr(dir string, cmd string) string {
  * @author lroyia
  * @since 2020年9月9日 10:29:13
  */
-func callCmd(dir string, name string, args ...string) string {
+func callCmd(dir string, name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	cmd.Stdin = strings.NewReader("")
@@ -187,9 +197,9 @@ func callCmd(dir string, name string, args ...string) string {
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		log.Fatal(err)
+		return out.String(), err
 	}
-	return out.String()
+	return out.String(), nil
 }
 
 /**
@@ -200,7 +210,7 @@ func callCmdNohup(dir string, key string, name string, args ...string) {
 	cmd.Dir = dir
 	err := cmd.Start()
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Println(err.Error())
 		return
 	}
 	// 常见一个channel，用于关闭
