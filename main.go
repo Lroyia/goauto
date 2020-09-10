@@ -126,8 +126,8 @@ func build(key string, dir string, branch string, script string) error {
 		// 控制台输出文件名，用输入命令去空格，去“-”，去“.”
 		//stdOutFileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(runScript, " ", ""), ".", "_"), "-", "") + ".log"
 		runScript = strings.Trim(runScript, " ")
+		log.Println(runScript + "  --begin")
 		runScriptArray := strings.Split(runScript, " ")
-		log.Println(runScriptArray)
 		err := callCmdNohup(dir, runScriptArray[0], runScriptArray[1:]...)
 		if err != nil {
 			return err
@@ -141,12 +141,17 @@ func build(key string, dir string, branch string, script string) error {
 				break
 			}
 		}
-		log.Println(target)
 		if target == "" {
 			return errors.New("could not find the pid")
 		}
 		pidTab := strings.Split(target, " ")
-		pid := strings.Trim(pidTab[1], " ")
+		pid := ""
+		for _, each := range pidTab {
+			_, err := strconv.ParseInt(each, 0, 8)
+			if err == nil {
+				pid = each
+			}
+		}
 		pidMap[key] = pid
 		log.Println("pid=" + pid)
 	}
