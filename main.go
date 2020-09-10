@@ -69,11 +69,11 @@ func build(key string, dir string, branch string, script string) error {
 
 	// 更新仓库
 	rs = callCmd(dir, "git", "pull")
-	log.Println(rs)
 	if strings.Contains(rs, "Already") {
 		log.Println(key + "  " + rs)
 		return nil
 	}
+	log.Println(rs)
 
 	// 拆分构建脚本
 	script = strings.Trim(script, " ")
@@ -148,8 +148,7 @@ func build(key string, dir string, branch string, script string) error {
 		pidTab := strings.Split(target, " ")
 		pid := ""
 		for _, each := range pidTab {
-			_, err := strconv.ParseInt(each, 0, 8)
-			log.Println(each)
+			_, err := strconv.ParseInt(each, 0, 32)
 			if err == nil {
 				pid = each
 				break
