@@ -150,6 +150,7 @@ func build(key string, dir string, branch string, script string) error {
 			_, err := strconv.ParseInt(each, 0, 8)
 			if err == nil {
 				pid = each
+				break
 			}
 		}
 		pidMap[key] = pid
