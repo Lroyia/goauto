@@ -12,11 +12,14 @@ import (
 	"time"
 )
 
+// 记录进程pid的map
 var pidMap = make(map[string]string)
+
+// 记录协程通信channel的map
 var chMap = make(map[string]chan int)
 
 func main() {
-	for true {
+	for {
 		// 先读取配置
 		conf, err := config.ReadConfig("conf.ini")
 		// 默认休眠时间5分钟
@@ -105,8 +108,6 @@ func build(key string, dir string, branch string, script string) error {
 	// 执行
 	switch runtime.GOOS {
 	case "windows":
-		//runScriptArray := append([]string{"/b"}, strings.Split(runScript, " ")...)
-		//callCmd(dir, "start", runScriptArray...)
 		scripts = strings.SplitN(runScript, " ", 2)
 		var args string
 		binName := scripts[0]
@@ -116,11 +117,7 @@ func build(key string, dir string, branch string, script string) error {
 		runScriptArray := strings.Split(runScript, " ")
 		// 后台运行
 		go callCmdNohup(dir, key, runScriptArray[0], runScriptArray[1:]...)
-		//err := callCmdNohup(dir, scripts[0], strings.Split(scripts[1], " ")...)
-		//if err != nil {
-		//	return err
-		//}
-		//time.Sleep(time.Duration(1) * time.Second)
+		time.Sleep(time.Duration(1) * time.Second)
 		// 查询pid
 		whereArgs := "CommandLine=\"" + binName + args + "\""
 		rs = callCmd(dir, "wmic", "process", "where", whereArgs, "get", "ProcessId", "/value")
@@ -133,18 +130,12 @@ func build(key string, dir string, branch string, script string) error {
 		}
 	case "linux":
 		// 控制台输出文件名，用输入命令去空格，去“-”，去“.”
-		//stdOutFileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(runScript, " ", ""), ".", "_"), "-", ""), "/", "_") + ".log"
 		runScript = strings.Trim(runScript, " ")
 		log.Println(runScript + "  --begin")
 		runScriptArray := strings.Split(runScript, " ")
 		// 后台运行
 		go callCmdNohup(dir, key, runScriptArray[0], runScriptArray[1:]...)
-		//if err != nil {
-		//	return err
-		//}
-		//cmd := strings.Split("nohup "+runScript+" >"+stdOutFileName+" 2>&1 &", " ")
-		//_ = callCmdNohup(dir, cmd[0], cmd[1:]...)
-		//time.Sleep(time.Duration(1) * time.Second)
+		time.Sleep(time.Duration(1) * time.Second)
 		// 查询pid
 		rs = callCmd(dir, "ps", "-ef")
 		rsLines := strings.Split(rs, "\n")
@@ -191,23 +182,6 @@ func callCmdStr(dir string, cmd string) string {
 func callCmd(dir string, name string, args ...string) string {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
-	//stdout, err := cmd.StdoutPipe()
-	//if err != nil {     //获取输出对象，可以从该对象中读取输出结果
-	//	log.Fatal(err)
-	//	return err.Error()
-	//}
-	//defer stdout.Close()   // 保证关闭输出流
-	//if err := cmd.Start(); err != nil {   // 运行命令
-	//	log.Fatal(err)
-	//	return err.Error()
-	//}
-	//
-	//if opBytes, err := ioutil.ReadAll(stdout); err != nil {  // 读取输出结果
-	//	log.Fatal(err)
-	//	return err.Error()
-	//} else {
-	//	return string(opBytes)
-	//}
 	cmd.Stdin = strings.NewReader("")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -225,17 +199,18 @@ func callCmdNohup(dir string, key string, name string, args ...string) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	err := cmd.Start()
-	//callCmd(dir, name, args...)
-	//
 	if err != nil {
 		log.Fatal(err.Error())
 		return
 	}
+	// 常见一个channel，用于关闭
 	ch := make(chan int)
 	chMap[key] = ch
 	for {
 		signal := <-ch
 		if signal == 1 {
+			delete(pidMap, key)
+			delete(chMap, key)
 			cmd.Wait()
 			break
 		}
