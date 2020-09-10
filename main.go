@@ -223,13 +223,15 @@ func callCmd(dir string, name string, args ...string) string {
  * 后台运行
  */
 func callCmdNohup(dir string, key string, name string, args ...string) {
-	cmd := exec.Command(name, args...)
-	cmd.Dir = dir
-	err := cmd.Start()
-	if err != nil {
-		log.Fatal(err.Error())
-		return
-	}
+	//cmd := exec.Command(name, args...)
+	//cmd.Dir = dir
+	//err := cmd.Start()
+	callCmd(dir, name, args...)
+	//
+	//if err != nil {
+	//	log.Fatal(err.Error())
+	//	return
+	//}
 	ch := make(chan int)
 	chMap[key] = ch
 	for {
