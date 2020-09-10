@@ -65,20 +65,19 @@ func build(key string, dir string, branch string, script string) error {
 	log.Println(rs)
 
 	// 关掉之前的应用
-	if chMap[key] != nil {
-		chMap[key] <- 1
+	pid := pidMap[key]
+	if pid != "" {
+		switch runtime.GOOS {
+		case "windows":
+			callCmd(dir, "taskkill", "/pid", pid, "-t", "-f")
+		case "linux":
+			callCmd(dir, "kill", "-9", pid)
+		}
+		if chMap[key] != nil {
+			chMap[key] <- 1
+		}
+		log.Println("kill - " + pid)
 	}
-	//pid := pidMap[key]
-	//if pid != "" {
-	//	//switch runtime.GOOS {
-	//	//case "windows":
-	//	//	callCmd(dir, "taskkill", "/pid", pid, "-t", "-f")
-	//	//case "linux":
-	//	//	callCmd(dir, "kill", "-9", pid)
-	//	//}
-	//	ch <- pid
-	//	log.Println("kill - " + pid)
-	//}
 
 	// 拆分构建脚本
 	script = strings.Trim(script, " ")
@@ -108,12 +107,12 @@ func build(key string, dir string, branch string, script string) error {
 	case "windows":
 		//runScriptArray := append([]string{"/b"}, strings.Split(runScript, " ")...)
 		//callCmd(dir, "start", runScriptArray...)
-		//scripts = strings.SplitN(runScript, " ", 2)
-		//var args string
-		//binName := scripts[0]
-		//if len(scripts) > 1 {
-		//	args = " " + scripts[1]
-		//}
+		scripts = strings.SplitN(runScript, " ", 2)
+		var args string
+		binName := scripts[0]
+		if len(scripts) > 1 {
+			args = " " + scripts[1]
+		}
 		runScriptArray := strings.Split(runScript, " ")
 		// 后台运行
 		go callCmdNohup(dir, key, runScriptArray[0], runScriptArray[1:]...)
@@ -122,16 +121,16 @@ func build(key string, dir string, branch string, script string) error {
 		//	return err
 		//}
 		//time.Sleep(time.Duration(1) * time.Second)
-		//// 查询pid
-		//whereArgs := "CommandLine=\"" + binName + args + "\""
-		//rs = callCmd(dir, "wmic", "process", "where", whereArgs, "get", "ProcessId", "/value")
-		//rs = strings.Trim(strings.Trim(strings.Trim(rs, " "), "\n"), "\r")
-		//// 不是返回“没有可用实例”
-		//if !strings.Contains(rs, "没") && strings.Contains(rs, "=") {
-		//	pidSplit := strings.Split(rs, "=")
-		//	pidMap[key] = strings.ReplaceAll(strings.ReplaceAll(pidSplit[1], "\n", ""), "\r", "")
-		//	log.Println("pid=" + pidMap[key])
-		//}
+		// 查询pid
+		whereArgs := "CommandLine=\"" + binName + args + "\""
+		rs = callCmd(dir, "wmic", "process", "where", whereArgs, "get", "ProcessId", "/value")
+		rs = strings.Trim(strings.Trim(strings.Trim(rs, " "), "\n"), "\r")
+		// 不是返回“没有可用实例”
+		if !strings.Contains(rs, "没") && strings.Contains(rs, "=") {
+			pidSplit := strings.Split(rs, "=")
+			pidMap[key] = strings.ReplaceAll(strings.ReplaceAll(pidSplit[1], "\n", ""), "\r", "")
+			log.Println("pid=" + pidMap[key])
+		}
 	case "linux":
 		// 控制台输出文件名，用输入命令去空格，去“-”，去“.”
 		//stdOutFileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(runScript, " ", ""), ".", "_"), "-", ""), "/", "_") + ".log"
@@ -146,30 +145,30 @@ func build(key string, dir string, branch string, script string) error {
 		//cmd := strings.Split("nohup "+runScript+" >"+stdOutFileName+" 2>&1 &", " ")
 		//_ = callCmdNohup(dir, cmd[0], cmd[1:]...)
 		//time.Sleep(time.Duration(1) * time.Second)
-		//// 查询pid
-		//rs = callCmd(dir, "ps", "-ef")
-		//rsLines := strings.Split(rs, "\n")
-		//target := ""
-		//for _, each := range rsLines {
-		//	if strings.Contains(each, runScript) {
-		//		target = each
-		//		break
-		//	}
-		//}
-		//if target == "" {
-		//	return errors.New("could not find the pid")
-		//}
-		//pidTab := strings.Split(target, " ")
-		//pid := ""
-		//for _, each := range pidTab {
-		//	_, err := strconv.ParseInt(each, 0, 32)
-		//	if err == nil {
-		//		pid = each
-		//		break
-		//	}
-		//}
-		//pidMap[key] = pid
-		//log.Println("pid=" + pid)
+		// 查询pid
+		rs = callCmd(dir, "ps", "-ef")
+		rsLines := strings.Split(rs, "\n")
+		target := ""
+		for _, each := range rsLines {
+			if strings.Contains(each, runScript) {
+				target = each
+				break
+			}
+		}
+		if target == "" {
+			return errors.New("could not find the pid")
+		}
+		pidTab := strings.Split(target, " ")
+		pid := ""
+		for _, each := range pidTab {
+			_, err := strconv.ParseInt(each, 0, 32)
+			if err == nil {
+				pid = each
+				break
+			}
+		}
+		pidMap[key] = pid
+		log.Println("pid=" + pid)
 	}
 	log.Println(runScript + " ---success")
 	return nil
@@ -223,20 +222,21 @@ func callCmd(dir string, name string, args ...string) string {
  * 后台运行
  */
 func callCmdNohup(dir string, key string, name string, args ...string) {
-	//cmd := exec.Command(name, args...)
-	//cmd.Dir = dir
-	//err := cmd.Start()
-	callCmd(dir, name, args...)
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	err := cmd.Start()
+	//callCmd(dir, name, args...)
 	//
-	//if err != nil {
-	//	log.Fatal(err.Error())
-	//	return
-	//}
+	if err != nil {
+		log.Fatal(err.Error())
+		return
+	}
 	ch := make(chan int)
 	chMap[key] = ch
 	for {
 		signal := <-ch
 		if signal == 1 {
+			cmd.Wait()
 			break
 		}
 	}
