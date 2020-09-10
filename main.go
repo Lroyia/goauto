@@ -125,6 +125,8 @@ func build(key string, dir string, branch string, script string) error {
 	case "linux":
 		// 控制台输出文件名，用输入命令去空格，去“-”，去“.”
 		//stdOutFileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(runScript, " ", ""), ".", "_"), "-", "") + ".log"
+		runScript = strings.Trim(runScript, " ")
+		log.Println(runScript)
 		runScriptArray := strings.SplitN(runScript, " ", 2)
 		log.Println(runScriptArray)
 		err := callCmdNohup(dir, runScriptArray[0], runScriptArray[1:]...)
@@ -132,7 +134,6 @@ func build(key string, dir string, branch string, script string) error {
 			return err
 		}
 		rs = callCmd(dir, "ps", "-ef")
-		log.Println(rs)
 		rsLines := strings.Split(rs, "\n")
 		target := ""
 		for _, each := range rsLines {
