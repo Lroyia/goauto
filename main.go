@@ -109,10 +109,13 @@ func build(key string, dir string, branch string, script string) error {
 		if len(scripts) > 1 {
 			args = " " + scripts[1]
 		}
-		err := callCmdNohup(dir, scripts[0], strings.Split(scripts[1], " ")...)
-		if err != nil {
-			return err
-		}
+		runScriptArray := strings.Split(runScript, " ")
+		// 后台运行
+		go callCmd(dir, runScriptArray[0], runScriptArray[1:]...)
+		//err := callCmdNohup(dir, scripts[0], strings.Split(scripts[1], " ")...)
+		//if err != nil {
+		//	return err
+		//}
 		// 查询pid
 		whereArgs := "CommandLine=\"" + binName + args + "\""
 		rs = callCmd(dir, "wmic", "process", "where", whereArgs, "get", "ProcessId", "/value")
@@ -125,16 +128,17 @@ func build(key string, dir string, branch string, script string) error {
 		}
 	case "linux":
 		// 控制台输出文件名，用输入命令去空格，去“-”，去“.”
-		stdOutFileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(runScript, " ", ""), ".", "_"), "-", ""), "/", "_") + ".log"
+		//stdOutFileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(runScript, " ", ""), ".", "_"), "-", ""), "/", "_") + ".log"
 		runScript = strings.Trim(runScript, " ")
 		log.Println(runScript + "  --begin")
-		//runScriptArray := strings.Split(runScript, " ")
-		//err := callCmdNohup(dir, runScriptArray[0], runScriptArray[1:]...)
+		runScriptArray := strings.Split(runScript, " ")
+		// 后台运行
+		go callCmd(dir, runScriptArray[0], runScriptArray[1:]...)
 		//if err != nil {
 		//	return err
 		//}
-		cmd := strings.Split("nohup "+runScript+" >"+stdOutFileName+" 2>&1 &", " ")
-		_ = callCmdNohup(dir, cmd[0], cmd[1:]...)
+		//cmd := strings.Split("nohup "+runScript+" >"+stdOutFileName+" 2>&1 &", " ")
+		//_ = callCmdNohup(dir, cmd[0], cmd[1:]...)
 		rs = callCmd(dir, "ps", "-ef")
 		rsLines := strings.Split(rs, "\n")
 		target := ""
@@ -205,18 +209,4 @@ func callCmd(dir string, name string, args ...string) string {
 		log.Fatal(err)
 	}
 	return out.String()
-}
-
-/**
- * 挂起运行
- */
-func callCmdNohup(dir string, name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Dir = dir
-	io, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	defer io.Close()
-	return cmd.Start()
 }
