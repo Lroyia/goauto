@@ -116,6 +116,7 @@ func build(key string, dir string, branch string, script string) error {
 		//if err != nil {
 		//	return err
 		//}
+		time.Sleep(time.Duration(1) * time.Second)
 		// 查询pid
 		whereArgs := "CommandLine=\"" + binName + args + "\""
 		rs = callCmd(dir, "wmic", "process", "where", whereArgs, "get", "ProcessId", "/value")
@@ -139,6 +140,8 @@ func build(key string, dir string, branch string, script string) error {
 		//}
 		//cmd := strings.Split("nohup "+runScript+" >"+stdOutFileName+" 2>&1 &", " ")
 		//_ = callCmdNohup(dir, cmd[0], cmd[1:]...)
+		time.Sleep(time.Duration(1) * time.Second)
+		// 查询pid
 		rs = callCmd(dir, "ps", "-ef")
 		rsLines := strings.Split(rs, "\n")
 		target := ""
