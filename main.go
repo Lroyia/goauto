@@ -55,6 +55,14 @@ func build(key string, dir string, branch string, script string) error {
 	}
 	log.Println(key + " " + "git checkout " + branch + "  ---success")
 
+	// 更新仓库
+	rs = callCmd(dir, "git", "pull")
+	if strings.Contains(rs, "Already") {
+		log.Println(key + "  " + rs)
+		return nil
+	}
+	log.Println(rs)
+
 	// 关掉之前的应用
 	pid := pidMap[key]
 	if pid != "" {
@@ -66,14 +74,6 @@ func build(key string, dir string, branch string, script string) error {
 		}
 		log.Println("kill - " + pid)
 	}
-
-	// 更新仓库
-	rs = callCmd(dir, "git", "pull")
-	if strings.Contains(rs, "Already") {
-		log.Println(key + "  " + rs)
-		return nil
-	}
-	log.Println(rs)
 
 	// 拆分构建脚本
 	script = strings.Trim(script, " ")
@@ -125,14 +125,15 @@ func build(key string, dir string, branch string, script string) error {
 		}
 	case "linux":
 		// 控制台输出文件名，用输入命令去空格，去“-”，去“.”
-		//stdOutFileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(runScript, " ", ""), ".", "_"), "-", "") + ".log"
+		stdOutFileName := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(runScript, " ", ""), ".", "_"), "-", ""), "/", "_") + ".log"
 		runScript = strings.Trim(runScript, " ")
 		log.Println(runScript + "  --begin")
-		runScriptArray := strings.Split(runScript, " ")
-		err := callCmdNohup(dir, runScriptArray[0], runScriptArray[1:]...)
-		if err != nil {
-			return err
-		}
+		//runScriptArray := strings.Split(runScript, " ")
+		//err := callCmdNohup(dir, runScriptArray[0], runScriptArray[1:]...)
+		//if err != nil {
+		//	return err
+		//}
+		_ = callCmdStr(dir, "nohup "+runScript+" >"+stdOutFileName+" 2>&1 &")
 		rs = callCmd(dir, "ps", "-ef")
 		rsLines := strings.Split(rs, "\n")
 		target := ""
