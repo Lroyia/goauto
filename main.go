@@ -60,15 +60,17 @@ func build(key string, dir string, branch string, script string) error {
 	log.Println(key + " " + "git checkout " + branch + "  ---success")
 
 	// 更新仓库
+	pid := pidMap[key]
 	rs, _ = callCmd(dir, "git", "pull")
 	if strings.Contains(rs, "Already") {
 		log.Println(key + "  " + rs)
-		return nil
+		if pid != "" {
+			return nil
+		}
 	}
 	log.Println(rs)
 
 	// 关掉之前的应用
-	pid := pidMap[key]
 	if pid != "" {
 		switch runtime.GOOS {
 		case "windows":
