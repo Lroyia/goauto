@@ -4,7 +4,7 @@
 ## 安装方法
 
 ```bash
-git clone https://github.com/lroyia/goauto #clone code
+git clone https://github.com/lroyia/goauto.git #clone code
 cd goauto #cd dir
 go build # build
 ```
