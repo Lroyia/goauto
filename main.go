@@ -33,7 +33,7 @@ func main() {
 			}
 			// 构建项目
 			for key, dir := range conf.Dir {
-				err = build(key, dir, conf.Branch[key], conf.Script[key])
+				err = build(key, dir, conf.Branch[key], conf.Build[key], conf.Run[key])
 				if err != nil {
 					log.Println(err.Error())
 				}
@@ -42,13 +42,14 @@ func main() {
 			log.Println("构建失败，配置文件读取错误：" + err.Error())
 		}
 		time.Sleep(time.Duration(sleepTime) * time.Second)
+		runtime.GC()
 	}
 }
 
 /**
  * 项目构建
  */
-func build(key string, dir string, branch string, script string) error {
+func build(key string, dir string, branch string, build string, run string) error {
 	// 执行结果定义
 	var rs string
 
@@ -64,9 +65,7 @@ func build(key string, dir string, branch string, script string) error {
 	rs, _ = callCmd(dir, "git", "pull")
 	if strings.Contains(rs, "Already") {
 		log.Println(key + "  " + rs)
-		if pid != "" {
-			return nil
-		}
+		return nil
 	}
 	log.Println(rs)
 
@@ -85,22 +84,15 @@ func build(key string, dir string, branch string, script string) error {
 	}
 
 	// 拆分构建脚本
-	script = strings.Trim(script, " ")
-	if script == "" {
+	build = strings.Trim(build, " ")
+	if build == "" {
 		return errors.New(key + " 缺少构建脚本")
 	}
-	scripts := strings.Split(script, "|")
+	builds := strings.Split(build, "|")
 
-	// 取最后一条脚本为运行脚本
-	runScript := strings.Trim(scripts[len(scripts)-1:][0], " ")
-	if runScript == "" {
-		return errors.New(key + " 构建脚本有误")
-	}
-	// 取前面的脚本作为构建项目的脚本
-	if len(scripts) > 1 {
-		scripts = scripts[0 : len(scripts)-1]
-		// 运行构建脚本
-		for _, s := range scripts {
+	// 运行构建脚本
+	if len(builds) > 0 {
+		for _, s := range builds {
 			log.Println(s + " --begin")
 			rs, err := callCmdStr(dir, s)
 			log.Println(rs)
@@ -111,18 +103,35 @@ func build(key string, dir string, branch string, script string) error {
 		}
 	}
 
+	// 运行执行脚本
+	if strings.Trim(run, "") != "" {
+		err := runAppScript(dir, key, run)
+		if err != nil {
+			return err
+		}
+	}
+
+	_ = rs
+
+	return nil
+}
+
+/**
+ * 运行运行脚本
+ */
+func runAppScript(dir string, key string, runScript string) error {
 	// 执行
 	switch runtime.GOOS {
 	case "windows":
-		scripts = strings.SplitN(runScript, " ", 2)
+		builds := strings.SplitN(runScript, " ", 2)
 		var args string
-		binName := scripts[0]
-		if len(scripts) > 1 {
-			args = " " + scripts[1]
+		binName := builds[0]
+		if len(builds) > 1 {
+			args = " " + builds[1]
 		}
-		runScriptArray := strings.Split(runScript, " ")
+		buildScriptArray := strings.Split(runScript, " ")
 		// 后台运行
-		go callCmdNohup(dir, key, runScriptArray[0], runScriptArray[1:]...)
+		go callCmdNohup(dir, key, buildScriptArray[0], buildScriptArray[1:]...)
 		time.Sleep(time.Duration(1) * time.Second)
 		// 查询pid
 		whereArgs := "CommandLine=\"" + binName + args + "\""
@@ -137,13 +146,14 @@ func build(key string, dir string, branch string, script string) error {
 			pidMap[key] = strings.ReplaceAll(strings.ReplaceAll(pidSplit[1], "\n", ""), "\r", "")
 			log.Println("pid=" + pidMap[key])
 		}
+		_ = rs
 	case "linux":
 		// 控制台输出文件名，用输入命令去空格，去“-”，去“.”
 		runScript = strings.Trim(runScript, " ")
 		log.Println(runScript + "  --begin")
-		runScriptArray := strings.Split(runScript, " ")
+		buildScriptArray := strings.Split(runScript, " ")
 		// 后台运行
-		go callCmdNohup(dir, key, runScriptArray[0], runScriptArray[1:]...)
+		go callCmdNohup(dir, key, buildScriptArray[0], buildScriptArray[1:]...)
 		time.Sleep(time.Duration(1) * time.Second)
 		// 查询pid
 		rs, err := callCmd(dir, "ps", "-ef")
@@ -173,7 +183,6 @@ func build(key string, dir string, branch string, script string) error {
 		pidMap[key] = pid
 		log.Println("pid=" + pid)
 	}
-	log.Println(runScript + " ---success")
 	return nil
 }
 
@@ -201,7 +210,8 @@ func callCmd(dir string, name string, args ...string) (string, error) {
 	if err != nil {
 		return out.String(), err
 	}
-	return out.String(), nil
+	s := out.String()
+	return s, nil
 }
 
 /**
