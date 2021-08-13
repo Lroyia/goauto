@@ -38,8 +38,12 @@ boot=D:/test/springboot-example
 # 这里配置的是项目需要监听并构建的是哪一个分支
 boot=develop
 
-[script]
+[build]
 # 构建脚本，多个用“|”分开，并默认以最后一条为执行命令
 # 在下面示例中标识的是用maven打包项目并跳过测试，完成后直接使用java执行jar包
-boot=mvn package -Dmaven.test.skip=true | java -jar target/springboot-example-0.0.1-SNAPSHOT.jar
+boot=mvn package -Dmaven.test.skip=true
+
+[run]
+# 应用执行脚本
+boot=java -jar target/springboot-example-0.0.1-SNAPSHOT.jar
 ```
