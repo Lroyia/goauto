@@ -44,7 +44,7 @@ func ReadConfig(filePath string) (InitConfig, error) {
 		config.Build[builds[s].Key] = builds[s].Value
 	}
 	for s := range runs {
-		config.Build[runs[s].Key] = runs[s].Value
+		config.Run[runs[s].Key] = runs[s].Value
 	}
 	return config, nil
 }
